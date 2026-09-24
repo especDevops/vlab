@@ -1,11 +1,36 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import App from './App';
+import { livroService } from './services/livroService';
+
+vi.mock('./services/livroService', () => ({
+  livroService: {
+    listar: vi.fn(),
+    criar: vi.fn(),
+    remover: vi.fn(),
+  },
+}));
 
 describe('App', () => {
-  it('renders without crashing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders without crashing and displays books fetched from API', async () => {
+    vi.mocked(livroService.listar).mockResolvedValue([
+      {
+        id: 1,
+        titulo: 'Dom Casmurro',
+        autor: 'Machado de Assis',
+        genero: 'Romance',
+        anoPublicacao: 1899,
+      },
+    ]);
+
     render(<App />);
-    // Exemplo básico: apenas verifica se renderizou algo do app.
-    // Dependendo do conteúdo do seu App.tsx, você pode buscar textos específicos.
-    expect(document.body).toBeTruthy();
+
+    expect(screen.getByText(/Cadastro de Obras/i)).toBeInTheDocument();
+    expect(await screen.findByText('Dom Casmurro')).toBeInTheDocument();
+    expect(screen.getByText('Machado de Assis')).toBeInTheDocument();
   });
 });
