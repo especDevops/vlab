@@ -213,3 +213,10 @@ Caso deseje manter o servidor de desenvolvimento ativo em segundo plano:
 ```powershell
 Start-Process -FilePath "npm" -ArgumentList "run", "dev" -WindowStyle Hidden
 ```
+
+---
+
+## 📘 Manual Operacional (Runbook)
+
+Para procedimentos operacionais avançados, troubleshooting de incidentes de rede/CORS, verificação de integridade e rollback, consulte o [Runbook Operacional do Frontend](./RUNBOOK.md).
+
