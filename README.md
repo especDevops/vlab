@@ -121,22 +121,37 @@ server {
 }
 ```
 
-#### Opção C: Deploy com Docker
-Crie um arquivo `Dockerfile` na pasta `vlab`:
-```dockerfile
-# Etapa 1: Build da aplicação
-FROM node:24-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+#### Opção C: Deploy com Docker 🐳
 
-# Etapa 2: Servir com Nginx leve
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+O projeto já conta com [`Dockerfile`](./Dockerfile), [`.dockerignore`](./.dockerignore) e [`nginx.conf`](./nginx.conf) configurados para produção.
+
+##### Características da imagem:
+- **Build Stage**: Utiliza `node:24-alpine` para gerar os arquivos estáticos otimizados com `npm ci` e `npm run build`.
+- **Servidor Web**: Utiliza `nginx:alpine` para servir a SPA com alta performance.
+- **Configuração Nginx**: Suporte a rotas SPA (`try_files $uri $uri/ /index.html;`), compressão Gzip ativa e cabeçalhos de cache para assets estáticos.
+- **Configuração da API**: Aceita o argumento de build `VITE_API_URL` (padrão: `http://localhost:8080`).
+
+##### 1. Construir a imagem Docker:
+```bash
+docker build -t vlab-frontend .
+```
+
+*Para definir uma URL de API customizada no build:*
+```bash
+docker build --build-arg VITE_API_URL=http://api.seudominio.com -t vlab-frontend .
+```
+
+##### 2. Executar o container:
+```bash
+docker run -d -p 3000:80 --name frontend-container vlab-frontend
+```
+Acesse a aplicação em: 👉 `http://localhost:3000`
+
+##### 3. Comandos úteis:
+```bash
+docker logs -f frontend-container     # Ver logs de acesso do Nginx
+docker stop frontend-container        # Parar o container
+docker rm frontend-container          # Remover o container
 ```
 
 ---
