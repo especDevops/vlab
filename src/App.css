@@ -510,3 +510,21 @@
   color: var(--text);
   font-size: 0.9rem;
 }
+
+.toast-notification.error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.loading-indicator {
+  text-align: center;
+  padding: 2.5rem;
+  color: var(--text);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+

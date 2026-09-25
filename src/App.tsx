@@ -1,50 +1,18 @@
-import { useState, useId } from 'react'
+import { useState, useId, useEffect } from 'react'
 import './App.css'
-
-interface BookItem {
-  id: string
-  titulo: string
-  autor: string
-  genero: string
-  ano: string
-  dataCadastro: string
-}
-
-const LIVROS_INICIAIS: BookItem[] = [
-  {
-    id: '1',
-    titulo: 'Dom Casmurro',
-    autor: 'Machado de Assis',
-    genero: 'Romance / Realismo',
-    ano: '1899',
-    dataCadastro: '12/09/2026',
-  },
-  {
-    id: '2',
-    titulo: 'O Hobbit',
-    autor: 'J.R.R. Tolkien',
-    genero: 'Fantasia',
-    ano: '1937',
-    dataCadastro: '12/09/2026',
-  },
-  {
-    id: '3',
-    titulo: 'Duna',
-    autor: 'Frank Herbert',
-    genero: 'Ficção Científica',
-    ano: '1965',
-    dataCadastro: '12/09/2026',
-  },
-]
+import { livroService, type Livro } from './services/livroService'
 
 function App() {
-  const [livros, setLivros] = useState<BookItem[]>(LIVROS_INICIAIS)
+  const [livros, setLivros] = useState<Livro[]>([])
+  const [carregando, setCarregando] = useState<boolean>(true)
+  const [salvando, setSalvando] = useState<boolean>(false)
   const [titulo, setTitulo] = useState('')
   const [autor, setAutor] = useState('')
   const [genero, setGenero] = useState('')
   const [ano, setAno] = useState('')
   const [filtro, setFiltro] = useState('')
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null)
+  const [mensagemErro, setMensagemErro] = useState<string | null>(null)
 
   const tituloId = useId()
   const autorId = useId()
@@ -52,36 +20,84 @@ function App() {
   const anoId = useId()
   const filtroId = useId()
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    let ignore = false
+
+    livroService
+      .listar()
+      .then((dados) => {
+        if (!ignore) {
+          setLivros(dados)
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          console.error('Erro ao listar livros:', err)
+          setMensagemErro('Não foi possível conectar ao servidor para carregar o acervo.')
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setCarregando(false)
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (!titulo.trim() || !autor.trim() || !genero.trim() || !ano.trim()) {
+    const anoNum = parseInt(ano.trim(), 10)
+    if (!titulo.trim() || !autor.trim() || !genero.trim() || isNaN(anoNum)) {
       return
     }
 
-    const novoLivro: BookItem = {
-      id: Date.now().toString(),
-      titulo: titulo.trim(),
-      autor: autor.trim(),
-      genero: genero.trim(),
-      ano: ano.trim(),
-      dataCadastro: new Date().toLocaleDateString('pt-BR'),
+    try {
+      setSalvando(true)
+      setMensagemErro(null)
+      const novoLivro = await livroService.criar({
+        titulo: titulo.trim(),
+        autor: autor.trim(),
+        genero: genero.trim(),
+        anoPublicacao: anoNum,
+      })
+
+      setLivros((prev) => [novoLivro, ...prev])
+      setTitulo('')
+      setAutor('')
+      setGenero('')
+      setAno('')
+
+      setMensagemSucesso(`"${novoLivro.titulo}" cadastrado com sucesso!`)
+      setTimeout(() => {
+        setMensagemSucesso(null)
+      }, 4000)
+    } catch (err) {
+      console.error('Erro ao cadastrar livro:', err)
+      setMensagemErro('Erro ao cadastrar obra no servidor. Verifique se o backend está em execução.')
+      setTimeout(() => {
+        setMensagemErro(null)
+      }, 5000)
+    } finally {
+      setSalvando(false)
     }
-
-    setLivros((prev) => [novoLivro, ...prev])
-    setTitulo('')
-    setAutor('')
-    setGenero('')
-    setAno('')
-
-    setMensagemSucesso(`"${novoLivro.titulo}" cadastrado com sucesso!`)
-    setTimeout(() => {
-      setMensagemSucesso(null)
-    }, 4000)
   }
 
-  const handleRemover = (id: string) => {
-    setLivros((prev) => prev.filter((item) => item.id !== id))
+  const handleRemover = async (id: number) => {
+    try {
+      setMensagemErro(null)
+      await livroService.remover(id)
+      setLivros((prev) => prev.filter((item) => item.id !== id))
+    } catch (err) {
+      console.error('Erro ao excluir livro:', err)
+      setMensagemErro('Erro ao excluir a obra do servidor.')
+      setTimeout(() => {
+        setMensagemErro(null)
+      }, 5000)
+    }
   }
 
   const livrosFiltrados = livros.filter((livro) => {
@@ -90,7 +106,7 @@ function App() {
       livro.titulo.toLowerCase().includes(termo) ||
       livro.autor.toLowerCase().includes(termo) ||
       livro.genero.toLowerCase().includes(termo) ||
-      livro.ano.includes(termo)
+      livro.anoPublicacao.toString().includes(termo)
     )
   })
 
@@ -117,6 +133,19 @@ function App() {
             />
           </svg>
           <span>{mensagemSucesso}</span>
+        </div>
+      )}
+
+      {mensagemErro && (
+        <div className="toast-notification error" role="alert">
+          <svg className="toast-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <span>{mensagemErro}</span>
         </div>
       )}
 
@@ -253,12 +282,12 @@ function App() {
               >
                 Limpar
               </button>
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary" disabled={salvando}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="btn-icon">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                Cadastrar Obra
+                {salvando ? 'Cadastrando...' : 'Cadastrar Obra'}
               </button>
             </div>
           </form>
@@ -298,7 +327,11 @@ function App() {
             </div>
           </div>
 
-          {livrosFiltrados.length === 0 ? (
+          {carregando ? (
+            <div className="loading-indicator">
+              <span>Carregando acervo do servidor...</span>
+            </div>
+          ) : livrosFiltrados.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">📚</div>
               <h3>Nenhum registro encontrado</h3>
@@ -314,7 +347,7 @@ function App() {
                 <article key={item.id} className="book-card">
                   <div className="book-card-header">
                     <span className="genre-badge">{item.genero}</span>
-                    <span className="year-pill">{item.ano}</span>
+                    <span className="year-pill">{item.anoPublicacao}</span>
                   </div>
 
                   <h3 className="book-title" title={item.titulo}>
@@ -329,7 +362,7 @@ function App() {
                   </p>
 
                   <div className="book-card-footer">
-                    <span className="added-date">Adicionado em {item.dataCadastro}</span>
+                    <span className="added-date">ID: #{item.id}</span>
                     <button
                       type="button"
                       className="delete-btn"
