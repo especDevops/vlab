@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from "../api/api";
 
 export interface Livro {
   id: number;
@@ -9,25 +9,16 @@ export interface Livro {
   descricao?: string;
 }
 
-export type NovoLivroPayload = Omit<Livro, 'id'>;
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+export type NovoLivroPayload = Omit<Livro, "id">;
 
 export const livroService = {
   listar: async (): Promise<Livro[]> => {
-    const response = await api.get<Livro[]>('/livros');
+    const response = await api.get<Livro[]>("/livros");
     return response.data;
   },
 
   criar: async (payload: NovoLivroPayload): Promise<Livro> => {
-    const response = await api.post<Livro>('/livros', payload);
+    const response = await api.post<Livro>("/livros", payload);
     return response.data;
   },
 
