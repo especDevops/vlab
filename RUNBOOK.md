@@ -147,6 +147,46 @@ Acesse em: 👉 `http://localhost:3000`
 
 ---
 
+### SOP-07: CI/CD com GitHub Actions e Docker Hub
+
+O workflow `.github/workflows/ci.yml` valida frontend e backend em pull requests e pushes para `main`. Após um push aprovado ou disparo manual em `main`, publica as imagens `vlab` e `biblioteca-backend` no Docker Hub com tags `latest` e o SHA do commit. Em seguida, o job `deploy-local` faz pull dessas tags e atualiza a stack no runner local usando `compose.deploy.yml`.
+
+#### Configuração no GitHub
+
+Crie as credenciais como secrets no environment **lab**, em **Settings > Environments > lab**:
+
+| Tipo | Nome | Valor |
+| :--- | :--- | :--- |
+| Secret | `DOCKERHUB_USERNAME` | Namespace/usuário Docker Hub em minúsculas |
+| Secret | `DOCKERHUB_TOKEN` | Access token Docker Hub com permissão de leitura e escrita |
+| Secret | `POSTGRES_PASSWORD` | Senha atual do banco; para o volume criado pelo Compose anterior, o valor atual é `postgres` |
+| Secret | `JWT_SECRET` | Segredo JWT forte, com pelo menos 32 caracteres |
+
+Crie no Docker Hub os repositórios `vlab` e `biblioteca-backend` no namespace configurado. O workflow também aceita `DOCKERHUB_USERNAME` como variable de repositório para compatibilidade. O backend é obtido da branch `main` do repositório público `especDevops/biblioteca-backend`.
+
+#### Runner de deploy
+
+Registre o runner self-hosted com o nome `DARTH` e atribua também o label `DARTH`, usado pelo workflow em `runs-on`. O nome do runner sozinho não é selecionável pelo GitHub Actions. Ele precisa permanecer ativo, ter Docker Engine/Desktop e Docker Compose v2 disponíveis no `PATH`, e o usuário do serviço do runner precisa poder acessar o daemon Docker. O runner é usado apenas no job de deploy; lint, testes, builds e publicação rodam em runners hospedados pelo GitHub.
+
+O deploy publica a aplicação localmente em `http://localhost:5173`, a API em `http://localhost:8080` e mantém o volume de dados existente `github_biblioteca_db_data`. As portas são limitadas a loopback. Pull requests executam apenas validação; publicação e deploy só ocorrem em `main`.
+
+#### Disparo manual do deploy
+
+`workflow_dispatch` publica e implanta a revisão selecionada somente quando ela pertence a `main`. Para redeploy manual da última imagem no host, na pasta do checkout:
+
+```powershell
+$env:DOCKERHUB_USERNAME = "seu-usuario"
+$env:IMAGE_TAG = "latest"
+$env:POSTGRES_PASSWORD = "senha-atual-do-banco"
+$env:JWT_SECRET = "seu-segredo-jwt"
+docker compose -f compose.deploy.yml pull
+docker compose -f compose.deploy.yml up -d --remove-orphans --wait --wait-timeout 180
+```
+
+Não armazene esses valores em arquivos commitados. O `POSTGRES_PASSWORD` deve corresponder à senha gravada no volume atual; alterar apenas a variável não troca a senha de um banco já inicializado.
+
+---
+
 ## 4. Verificação de Integridade (Health Check & Smoke Test)
 
 Execute as validações a seguir após iniciar a interface:
