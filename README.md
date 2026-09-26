@@ -156,6 +156,36 @@ docker rm frontend-container          # Remover o container
 
 ---
 
+## CI/CD com GitHub Actions e Docker Hub
+
+O workflow [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) valida o frontend e os testes do backend em pull requests para `main`. Em um push para `main`, também publica as imagens do frontend (`vlab`) e do backend (`biblioteca-backend`) no Docker Hub, com tags `latest` e o SHA do commit do frontend.
+
+Após a publicação, o runner self-hosted da organização faz pull e atualiza os containers usando a tag SHA, garantindo que o deploy corresponda ao commit que disparou o workflow. O deploy fica disponível em `http://localhost:5173`, e a API em `http://localhost:8080`. O Compose está em [`compose.deploy.yml`](./compose.deploy.yml).
+
+### Configuração necessária
+
+Configure estes **Environment secrets** em **Settings > Environments > lab**:
+
+| Secret | Finalidade |
+| :--- | :--- |
+| `DOCKERHUB_USERNAME` | Namespace que contém os repositórios `vlab` e `biblioteca-backend` |
+| `DOCKERHUB_TOKEN` | Token Docker Hub com permissão de push e pull |
+| `POSTGRES_PASSWORD` | Senha correspondente ao banco associado ao volume persistente |
+| `JWT_SECRET` | Segredo usado para assinar tokens JWT |
+
+O runner DARTH pertence ao grupo de runners da organização e precisa estar acessível ao repositório `vlab`. O workflow seleciona os labels `self-hosted`, `Windows` e `X64`; `DARTH` é o nome do runner, não um label. O host precisa ter Docker e Docker Compose v2 disponíveis para a conta que executa o runner.
+
+### Quando o workflow executa
+
+- Push para `main`: valida, publica as imagens e faz deploy.
+- Pull request para `main`: executa somente validação.
+- `workflow_dispatch` na `main`: permite publicar e implantar a revisão selecionada.
+- Push em outra branch: executa somente validação.
+
+O backend é obtido da branch `main` de `especDevops/biblioteca-backend` quando o workflow roda. Um commit feito somente nesse repositório não dispara este workflow; para implantá-lo, é necessário executar o workflow do VLab após a atualização do backend. Para detalhes operacionais, consulte o [Runbook](./RUNBOOK.md#sop-07-cicd-com-github-actions-e-docker-hub).
+
+---
+
 ## ⚙️ Como Deixar Rodando na Máquina (Segundo Plano / Serviço)
 
 ### Opção 1: Usando PM2 + Serve (Recomendado para Servidores Locais)

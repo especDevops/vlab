@@ -12,16 +12,18 @@ Este documento é o Manual Operacional (Runbook / SOP) da interface web SPA **VL
 | **Tecnologias** | React 19, TypeScript, Vite 8, Axios, Vitest, Oxlint, Nginx Alpine |
 | **Porta (Dev)** | `5173` (Vite dev server) |
 | **Porta (Preview Local)** | `4173` (Vite preview) |
-| **Porta (Produção Docker)** | `3000` (mapeada para a porta interna `80` do Nginx) |
+| **Porta (Docker standalone)** | `3000` (mapeada para a porta interna `80` do Nginx) |
+| **Porta (deploy CI/CD)** | Frontend `5173`; API `8080`; PostgreSQL `5432` (loopback) |
 | **Dependência Upstream** | API REST Backend (`biblioteca-backend`) na porta `8080` |
 | **Artefato de Saída** | Diretório estático `dist/` |
-| **Imagem Docker** | `vlab-frontend:latest` (base: `nginx:alpine`) |
+| **Imagens Docker Hub** | `<namespace>/vlab:<commit SHA>` e `<namespace>/biblioteca-backend:<commit SHA>` |
 
 ### Fluxo de Comunicação
 ```mermaid
 flowchart LR
-    Browser["Navegador do Usuário"] -->|"Porta 3000 / 5173 (HTTP)"| Nginx["VLab Frontend (Vite / Nginx SPA)"]
-    Nginx -->|"Axios HTTP REST (Porta 8080)"| Backend["biblioteca-backend (/livros)"]
+  Browser["Navegador do Usuário"] -->|"HTTP :5173"| Nginx["VLab Frontend (Nginx SPA)"]
+  Browser -->|"Axios HTTP REST :8080"| Backend["biblioteca-backend"]
+  Backend -->|"JDBC :5432"| Database["PostgreSQL"]
 ```
 
 ---
@@ -149,41 +151,64 @@ Acesse em: 👉 `http://localhost:3000`
 
 ### SOP-07: CI/CD com GitHub Actions e Docker Hub
 
-O workflow `.github/workflows/ci.yml` valida frontend e backend em pull requests e pushes para `main`. Após um push aprovado ou disparo manual em `main`, publica as imagens `vlab` e `biblioteca-backend` no Docker Hub com tags `latest` e o SHA do commit. Em seguida, o job `deploy-local` faz pull dessas tags e atualiza a stack no runner local usando `compose.deploy.yml`.
+O workflow `.github/workflows/ci.yml` valida o frontend e o backend em pull requests para `main`. Um push para `main`, após validação, também publica as imagens no Docker Hub e atualiza os containers no runner DARTH usando `compose.deploy.yml`.
 
-#### Configuração no GitHub
+#### Gatilhos e tags
 
-Crie as credenciais como secrets no environment **lab**, em **Settings > Environments > lab**:
+| Evento | Comportamento |
+| :--- | :--- |
+| Push para `main` | Valida, publica imagens e faz deploy |
+| Pull request para `main` | Executa somente validação |
+| `workflow_dispatch` em `main` | Valida, publica e implanta a revisão selecionada |
+| Push para outra branch | Executa somente validação |
 
-| Tipo | Nome | Valor |
-| :--- | :--- | :--- |
-| Secret | `DOCKERHUB_USERNAME` | Namespace/usuário Docker Hub em minúsculas |
-| Secret | `DOCKERHUB_TOKEN` | Access token Docker Hub com permissão de leitura e escrita |
-| Secret | `POSTGRES_PASSWORD` | Senha atual do banco; para o volume criado pelo Compose anterior, o valor atual é `postgres` |
-| Secret | `JWT_SECRET` | Segredo JWT forte, com pelo menos 32 caracteres |
+Cada imagem é publicada com as tags `latest` e o SHA do commit do frontend. O deploy define `IMAGE_TAG` como `${{ github.sha }}` e faz pull dessa tag imutável, em vez de depender do ponteiro mutável `latest`. Assim, as imagens implantadas correspondem ao commit que disparou aquela execução.
 
-Crie no Docker Hub os repositórios `vlab` e `biblioteca-backend` no namespace configurado. O workflow também aceita `DOCKERHUB_USERNAME` como variable de repositório para compatibilidade. O backend é obtido da branch `main` do repositório público `especDevops/biblioteca-backend`.
+O backend é clonado da branch `main` do repositório público `especDevops/biblioteca-backend` quando o workflow roda. Commits feitos somente nesse repositório não iniciam o workflow do frontend; para implantar uma alteração isolada do backend, é necessário disparar o workflow do VLab depois que ela estiver na `main` do backend.
 
-#### Runner de deploy
+#### Secrets do Environment `lab`
 
-Registre o runner self-hosted com o nome `DARTH` e atribua também o label `DARTH`, usado pelo workflow em `runs-on`. O nome do runner sozinho não é selecionável pelo GitHub Actions. Ele precisa permanecer ativo, ter Docker Engine/Desktop e Docker Compose v2 disponíveis no `PATH`, e o usuário do serviço do runner precisa poder acessar o daemon Docker. O runner é usado apenas no job de deploy; lint, testes, builds e publicação rodam em runners hospedados pelo GitHub.
+Configure os valores em **Settings > Environments > lab > Environment secrets**. O workflow usa-os em tempo de execução, sem gravá-los em arquivos do repositório.
 
-O deploy publica a aplicação localmente em `http://localhost:5173`, a API em `http://localhost:8080` e mantém o volume de dados existente `github_biblioteca_db_data`. As portas são limitadas a loopback. Pull requests executam apenas validação; publicação e deploy só ocorrem em `main`.
+| Secret | Uso |
+| :--- | :--- |
+| `DOCKERHUB_USERNAME` | Namespace que contém os repositórios Docker Hub `vlab` e `biblioteca-backend` |
+| `DOCKERHUB_TOKEN` | Autenticação para publicar e baixar imagens |
+| `POSTGRES_PASSWORD` | Senha atual do PostgreSQL associado ao volume persistente |
+| `JWT_SECRET` | Segredo usado pela API para assinar tokens |
 
-#### Disparo manual do deploy
+`POSTGRES_PASSWORD` deve corresponder à senha gravada no volume existente. Alterar somente a secret não modifica a senha de um banco que já foi inicializado.
 
-`workflow_dispatch` publica e implanta a revisão selecionada somente quando ela pertence a `main`. Para redeploy manual da última imagem no host, na pasta do checkout:
+#### Runner DARTH
+
+O runner está registrado no nível da organização, no grupo `Default`, com os labels `self-hosted`, `Windows` e `X64`. O workflow seleciona exatamente esses labels; `DARTH` é o nome do runner, não um label. O grupo precisa permitir acesso ao repositório `vlab`, o runner deve estar online, e a conta que executa o runner precisa acessar Docker Engine/Desktop e Docker Compose v2.
+
+Restrinja o grupo aos repositórios confiáveis que necessitam do runner. Permitir que todos os repositórios públicos executem jobs self-hosted aumenta o risco de execução de código não confiável na máquina de deploy.
+
+#### Stack de deploy
+
+O Compose publica o frontend em `http://localhost:5173`, a API em `http://localhost:8080` e o PostgreSQL em `localhost:5432`, todas as portas limitadas a loopback. O volume persistente chama-se `github_biblioteca_db_data`, preservando os dados da stack existente. O workflow aguarda o `compose up` e lista o estado final com `docker compose ps`.
+
+Para fazer manualmente pull e atualização no host, defina na sessão as variáveis `DOCKERHUB_USERNAME`, `IMAGE_TAG`, `POSTGRES_PASSWORD` e `JWT_SECRET`, usando valores guardados de forma segura:
 
 ```powershell
-$env:DOCKERHUB_USERNAME = "seu-usuario"
-$env:IMAGE_TAG = "latest"
-$env:POSTGRES_PASSWORD = "senha-atual-do-banco"
-$env:JWT_SECRET = "seu-segredo-jwt"
 docker compose -f compose.deploy.yml pull
 docker compose -f compose.deploy.yml up -d --remove-orphans --wait --wait-timeout 180
+docker compose -f compose.deploy.yml ps
 ```
 
-Não armazene esses valores em arquivos commitados. O `POSTGRES_PASSWORD` deve corresponder à senha gravada no volume atual; alterar apenas a variável não troca a senha de um banco já inicializado.
+Use `IMAGE_TAG=latest` para buscar o ponteiro mais recente; para reproduzir um deploy específico, use o SHA correspondente.
+
+#### Acompanhar execuções e filas
+
+```powershell
+gh run list --workflow ci.yml
+gh run view <RUN_ID> --log-failed
+gh run rerun <RUN_ID> --failed
+gh run cancel <RUN_ID>
+```
+
+O job `deploy-local` usa o grupo de concorrência `vlab-local-deployment`. Se uma execução antiga estiver sem runner e bloquear uma execução posterior, confirme qual run está retendo o grupo e cancele somente a execução obsoleta. Se o pull ou o `compose ps` falhar por variável obrigatória ausente, verifique os nomes das secrets do Environment `lab`; os comandos Compose precisam dessas variáveis até para listar a stack.
 
 ---
 
