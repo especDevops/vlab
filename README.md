@@ -160,7 +160,7 @@ docker rm frontend-container          # Remover o container
 
 O workflow [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) valida o frontend e os testes do backend em pull requests para `main`. Em um push para `main`, também publica as imagens do frontend (`vlab`) e do backend (`biblioteca-backend`) no Docker Hub, com tags `latest` e o SHA do commit do frontend.
 
-Após a publicação, o runner self-hosted da organização faz pull e atualiza os containers usando a tag SHA, garantindo que o deploy corresponda ao commit que disparou o workflow. O deploy fica disponível em `http://localhost:5173`, e a API em `http://localhost:8080`. O Compose está em [`compose.deploy.yml`](./compose.deploy.yml).
+Após a publicação, o runner self-hosted da organização faz pull e atualiza os containers usando a tag SHA, garantindo que o deploy corresponda ao commit que disparou o workflow. O frontend fica disponível em `http://localhost:5173` ou `http://127.0.0.1:5173`, e a API em `http://localhost:8080`. O Compose está em [`compose.deploy.yml`](./compose.deploy.yml); ambas as origens do frontend estão autorizadas no CORS.
 
 ### Configuração necessária
 

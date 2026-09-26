@@ -26,7 +26,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?Configure JWT_SECRET}
-      WEB_ORIGENS_PERMITIDAS: http://localhost:5173
+      WEB_ORIGENS_PERMITIDAS: http://localhost:5173,http://127.0.0.1:5173
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
