@@ -103,7 +103,7 @@ jobs:
   deploy-local:
     needs: publish-images
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: [self-hosted, DARTH]
+    runs-on: [self-hosted, Windows, X64]
     environment: lab
     concurrency:
       group: vlab-local-deployment
