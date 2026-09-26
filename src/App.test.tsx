@@ -14,6 +14,8 @@ vi.mock('./services/livroService', () => ({
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    localStorage.setItem('token', 'token-de-teste');
   });
 
   it('renders without crashing and displays books fetched from API', async () => {
@@ -29,7 +31,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(screen.getByText(/Cadastro de Obras/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /cadastrar livro/i })).toBeInTheDocument();
     expect(await screen.findByText('Dom Casmurro')).toBeInTheDocument();
     expect(screen.getByText('Machado de Assis')).toBeInTheDocument();
   });
