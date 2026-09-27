@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import axios from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
 
 import './Cadastro.css'
@@ -52,7 +53,12 @@ function Cadastro() {
       navigate('/livros')
     } catch (error) {
       console.error('Erro ao realizar cadastro:', error)
-      setErro('Não foi possível realizar o cadastro.')
+
+      if (axios.isAxiosError<{ erro?: string }>(error) && error.response?.status === 409) {
+        setErro(error.response.data?.erro ?? 'Este e-mail já está cadastrado. Tente entrar ou use outro endereço.')
+      } else {
+        setErro('Não foi possível realizar o cadastro. Tente novamente.')
+      }
     } finally {
       setCarregando(false)
     }
