@@ -205,14 +205,15 @@ Restrinja o grupo aos repositórios confiáveis que necessitam do runner. Permit
 
 #### Stack de deploy
 
-O Compose publica o frontend em `http://localhost:5173` ou `http://127.0.0.1:5173`, a API em `http://localhost:8080` e o PostgreSQL em `localhost:5432`, todas as portas limitadas a loopback. As duas URLs do frontend estão autorizadas no CORS do backend; `localhost` e `127.0.0.1` são origens distintas para o navegador. O volume persistente chama-se `github_biblioteca_db_data`, preservando os dados da stack existente. O workflow aguarda o `compose up` e lista o estado final com `docker compose ps`.
+O `docker-compose.yml` publica o frontend em `http://localhost:5173` ou `http://127.0.0.1:5173`, a API em `http://localhost:8080` e o PostgreSQL em `localhost:5432`, todas as portas limitadas a loopback. As duas URLs do frontend estão autorizadas no CORS do backend; `localhost` e `127.0.0.1` são origens distintas para o navegador. No deploy, `COMPOSE_PROJECT_NAME=github` preserva o volume `github_biblioteca_db_data` existente. O workflow baixa as imagens e usa `--no-build` para atualizar os serviços com o `compose up`, depois lista o estado final com `docker compose ps`.
 
 Para fazer manualmente pull e atualização no host, defina na sessão as variáveis `DOCKERHUB_USERNAME`, `IMAGE_TAG`, `POSTGRES_PASSWORD` e `JWT_SECRET`, usando valores guardados de forma segura:
 
 ```powershell
-docker compose -f compose.deploy.yml pull
-docker compose -f compose.deploy.yml up -d --remove-orphans --wait --wait-timeout 180
-docker compose -f compose.deploy.yml ps
+$env:COMPOSE_PROJECT_NAME = "github"
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d --no-build --remove-orphans --wait --wait-timeout 180
+docker compose -f docker-compose.yml ps
 ```
 
 Use `IMAGE_TAG=latest` para buscar o ponteiro mais recente; para reproduzir um deploy específico, use o SHA correspondente.
@@ -277,7 +278,7 @@ Execute as validações a seguir após iniciar a interface:
      ```powershell
      Test-NetConnection -ComputerName "localhost" -Port 8080
      ```
-  2. **Origem CORS não permitida:** `http://localhost:5173` e `http://127.0.0.1:5173` são origens diferentes. O Compose de deploy permite ambas; após alterar `WEB_ORIGENS_PERMITIDAS`, recrie o container backend com `docker compose up -d --force-recreate backend`.
+  2. **Origem CORS não permitida:** `http://localhost:5173` e `http://127.0.0.1:5173` são origens diferentes. O Compose permite ambas; após alterar `WEB_ORIGENS_PERMITIDAS`, recrie o container backend com `docker compose up -d --force-recreate backend`.
   3. **URL da API incorreta:** Verifique o valor de `VITE_API_URL` configurado. Se o container foi construído sem o `--build-arg` adequado, recompile a imagem.
 
 ---
