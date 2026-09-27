@@ -151,15 +151,15 @@ Acesse em: 👉 `http://localhost:3000`
 
 ### SOP-07: CI/CD com GitHub Actions e Docker Hub
 
-O workflow `.github/workflows/ci.yml` valida o frontend e o backend em pull requests para `main`. Um push para `main`, após validação, também publica as imagens no Docker Hub e atualiza os containers no runner DARTH usando `compose.deploy.yml`.
+O workflow `.github/workflows/ci.yml` valida frontend/backend e analisa JavaScript/TypeScript com CodeQL em pull requests para `main`. Para push ou execução manual na `main`, aguarda o Quality Gate do SonarQube Cloud antes de publicar imagens e atualizar os containers no runner DARTH.
 
 #### Gatilhos e tags
 
 | Evento | Comportamento |
 | :--- | :--- |
-| Push para `main` | Valida, publica imagens e faz deploy |
-| Pull request para `main` | Executa somente validação |
-| `workflow_dispatch` em `main` | Valida, publica e implanta a revisão selecionada |
+| Push para `main` | Valida, executa CodeQL e SonarCloud, publica imagens e faz deploy se os gates passarem |
+| Pull request para `main` | Executa validação e CodeQL; SonarCloud roda somente no fluxo de deploy da `main` |
+| `workflow_dispatch` em `main` | Valida, executa CodeQL e SonarCloud, publica e implanta a revisão selecionada |
 | Push para outra branch | Executa somente validação |
 
 Cada imagem é publicada com as tags `latest` e o SHA do commit do frontend. O deploy define `IMAGE_TAG` como `${{ github.sha }}` e faz pull dessa tag imutável, em vez de depender do ponteiro mutável `latest`. Assim, as imagens implantadas correspondem ao commit que disparou aquela execução.
@@ -178,6 +178,24 @@ Configure os valores em **Settings > Environments > lab > Environment secrets**.
 | `JWT_SECRET` | Segredo usado pela API para assinar tokens |
 
 `POSTGRES_PASSWORD` deve corresponder à senha gravada no volume existente. Alterar somente a secret não modifica a senha de um banco que já foi inicializado.
+
+#### CodeQL e SonarQube Cloud
+
+O job CodeQL analisa JavaScript/TypeScript com a query suite `security-extended` e publica SARIF no GitHub Code Scanning. Ele executa em PRs e pushes; porém, a conclusão verde do job significa que o scan foi executado e enviado, não que não existam alertas. Para impedir merge com findings, habilite uma ruleset/branch protection para `main` que exija resultados de code scanning do CodeQL e restrinja pushes diretos.
+
+O SonarCloud analisa o frontend em pushes/dispatch na `main`. O relatório LCOV é gerado por `npm run test:coverage`; a action espera o resultado com `sonar.qualitygate.wait=true`, e qualquer Quality Gate reprovado bloqueia `publish-images` e `deploy-local`.
+
+Crie primeiro o projeto `especDevops/vlab` no SonarQube Cloud e atribua a ele o Quality Gate desejado. Configure em **Settings > Environments > lab**:
+
+| Tipo | Nome | Valor |
+| :--- | :--- | :--- |
+| Environment secret | `SONAR_TOKEN` | Token do SonarQube Cloud com permissão de análise no projeto |
+| Environment variable | `SONAR_ORGANIZATION` | Organization key do SonarQube Cloud |
+| Environment variable | `SONAR_PROJECT_KEY` | Project key do projeto criado para este repositório |
+
+O SonarCloud não roda em PRs neste workflow para manter o token restrito ao deploy de `main`. A análise CodeQL do repositório atual cobre o frontend TypeScript; a análise do backend Java deve ser configurada no próprio repositório `biblioteca-backend` para publicar findings no lugar correto.
+
+O teste atual gera cobertura baixa no conjunto completo; defina no SonarCloud o Quality Gate apropriado para a baseline e aumente testes de frontend para cobrir código novo sem desativar a verificação de cobertura.
 
 #### Runner DARTH
 

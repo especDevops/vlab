@@ -16,5 +16,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
+    coverage: {
+      reporter: ['text', 'lcov'],
+    },
   },
 });
