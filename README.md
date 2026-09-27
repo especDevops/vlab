@@ -41,13 +41,13 @@ VITE_API_URL=http://localhost:8080
 
 ## 🚀 Execução Rápida (Docker Compose)
 
-O projeto inclui um `docker-compose.yml` pronto para subir a stack completa com frontend, backend e banco PostgreSQL em uma única etapa:
+O projeto inclui um único `docker-compose.yml` para subir frontend, backend e PostgreSQL. Copie `.env.example` para `.env`, informe seu namespace do Docker Hub e configure `POSTGRES_PASSWORD` e `JWT_SECRET` antes de iniciar. O frontend é construído localmente; o backend é obtido do Docker Hub:
 
 ```bash
 docker compose up --build -d
 ```
 
-A aplicação estará disponível em:
+A aplicação local estará disponível em:
 👉 **`http://localhost:5173/`**
 
 A API estará disponível em:
@@ -109,7 +109,7 @@ Acesse em: `http://localhost:3000`
 
 O workflow [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) valida o frontend, executa CodeQL em JavaScript/TypeScript e testa o backend em pull requests para `main`. Nos pushes para `main`, aguarda também o Quality Gate do SonarQube Cloud antes de publicar as imagens do frontend (`vlab`) e do backend (`biblioteca-backend`) no Docker Hub, com tags `latest` e o SHA do commit.
 
-Após a publicação, o runner self-hosted da organização faz pull e atualiza os containers usando a tag SHA, garantindo que o deploy corresponda ao commit que disparou o workflow. O frontend fica disponível em `http://localhost:5173` ou `http://127.0.0.1:5173`, e a API em `http://localhost:8080`. O Compose principal está em [`docker-compose.yml`](./docker-compose.yml); ambas as origens do frontend estão autorizadas no CORS.
+Após a publicação, o runner self-hosted da organização faz pull e atualiza os containers usando a tag SHA, garantindo que o deploy corresponda ao commit que disparou o workflow. O frontend fica disponível em `http://localhost:5173` ou `http://127.0.0.1:5173`, e a API em `http://localhost:8080`. O mesmo [`docker-compose.yml`](./docker-compose.yml) serve para desenvolvimento e deploy: o workflow baixa as imagens publicadas e usa `--no-build` para não reconstruir o frontend. Ambas as origens do frontend estão autorizadas no CORS.
 
 ### Configuração necessária
 
@@ -156,4 +156,3 @@ Start-Process -FilePath "npm" -ArgumentList "run", "dev" -WindowStyle Hidden
 ## 📘 Manual Operacional (Runbook)
 
 Para procedimentos operacionais avançados, troubleshooting de incidentes de rede/CORS, verificação de integridade e rollback, consulte o [Runbook Operacional do Frontend](./RUNBOOK.md).
-

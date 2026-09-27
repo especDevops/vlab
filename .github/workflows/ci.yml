@@ -193,14 +193,16 @@ jobs:
       - name: Pull published images
         run: docker compose -f docker-compose.yml pull
         env:
+          COMPOSE_PROJECT_NAME: github
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME }}
           IMAGE_TAG: ${{ github.sha }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Start or update local containers
-        run: docker compose -f docker-compose.yml up -d --remove-orphans --wait --wait-timeout 180
+        run: docker compose -f docker-compose.yml up -d --no-build --remove-orphans --wait --wait-timeout 180
         env:
+          COMPOSE_PROJECT_NAME: github
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME }}
           IMAGE_TAG: ${{ github.sha }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -209,6 +211,7 @@ jobs:
       - name: Show deployed services
         run: docker compose -f docker-compose.yml ps
         env:
+          COMPOSE_PROJECT_NAME: github
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME }}
           IMAGE_TAG: ${{ github.sha }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
