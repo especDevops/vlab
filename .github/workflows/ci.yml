@@ -191,7 +191,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Pull published images
-        run: docker compose -f compose.deploy.yml pull
+        run: docker compose -f docker-compose.yml pull
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME }}
           IMAGE_TAG: ${{ github.sha }}
@@ -199,7 +199,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Start or update local containers
-        run: docker compose -f compose.deploy.yml up -d --remove-orphans --wait --wait-timeout 180
+        run: docker compose -f docker-compose.yml up -d --remove-orphans --wait --wait-timeout 180
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME }}
           IMAGE_TAG: ${{ github.sha }}
@@ -207,7 +207,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: Show deployed services
-        run: docker compose -f compose.deploy.yml ps
+        run: docker compose -f docker-compose.yml ps
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME }}
           IMAGE_TAG: ${{ github.sha }}

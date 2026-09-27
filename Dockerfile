@@ -26,14 +26,18 @@ RUN npm run build
 # ==========================================
 FROM nginx:alpine
 
+# Ajusta permissões para execução como usuário não-root
+RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/run /etc/nginx/conf.d
+
 # Copia a configuração otimizada do Nginx para SPA
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copia os arquivos compilados da etapa de build
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
-# Expõe a porta HTTP padrão do Nginx
-EXPOSE 80
+# Expõe a porta HTTP do container em 8080 para permitir execução sem root
+EXPOSE 8080
 
-# Inicia o Nginx em modo foreground
+# Inicia o Nginx em modo foreground sem privilégios de root
+USER nginx
 CMD ["nginx", "-g", "daemon off;"]
