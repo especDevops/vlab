@@ -24,7 +24,7 @@ RUN npm run build
 # ==========================================
 # Etapa 2: Servidor Web Nginx de Produção
 # ==========================================
-FROM nginx:alpine
+FROM nginx:1.27-alpine
 
 # Ajusta permissões para execução como usuário não-root
 RUN sed -i 's#pid[[:space:]]*/run/nginx.pid;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf \
@@ -38,6 +38,9 @@ COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
 # Expõe a porta HTTP do container em 8080 para permitir execução sem root
 EXPOSE 8080
+
+# Healthcheck do servidor web
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 --start-period=5s CMD wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1
 
 # Inicia o Nginx em modo foreground sem privilégios de root
 USER nginx

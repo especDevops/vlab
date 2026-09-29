@@ -54,6 +54,11 @@ jobs:
         working-directory: backend-source
         run: ./mvnw -B test
 
+      - name: Validate Docker build (CI check)
+        run: |
+          docker build -t vlab:ci-test .
+          docker build -t biblioteca-backend:ci-test ./backend-source
+
       - name: Upload frontend coverage report
         uses: actions/upload-artifact@v4
         with:

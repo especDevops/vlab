@@ -6,3 +6,7 @@ dist
 .vscode
 *.md
 .DS_Store
+.env
+*.test.*
+setupTests.ts
+src/test/
